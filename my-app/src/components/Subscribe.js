@@ -7,33 +7,46 @@ const Subscribe = () => {
   const [memberId, setMemberId] = useState(''); // State for member ID input
   const [plan, setPlan] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [drugId, setDrugId] = useState('');
+  const [prescriptionId, setPrescriptionId] = useState('');
   const [subscribedDrugs, setSubscribedDrugs] = useState([]);
   const [showSubscribedDrugs, setShowSubscribedDrugs] = useState(false);
   const navigate = useNavigate();
-  const userin = localStorage.getItem("user");
+  const userin = localStorage.getItem("user"); // Check if the user is logged in
+
   useEffect(() => {
     if (!userin) {
-      navigate('/login'); // Redirect to login if no memberId is provided
+      navigate('/login'); // Redirect to login if user is not logged in
     }
-  }, [memberId, navigate]);
+  }, [userin, navigate]); // Corrected the dependency array to check 'userin'
 
   const fetchSubscribedDrugs = async () => {
     try {
       const response = await axios.get(`http://localhost:3000/api/subscription/${memberId}`);
-      setSubscribedDrugs(response.data);
+      if (Array.isArray(response.data)) {
+        setSubscribedDrugs(response.data); // Ensure data is an array
+      } else {
+        setSubscribedDrugs([]); // Reset if invalid data is received
+      }
     } catch (error) {
       console.error('Error fetching subscribed drugs:', error);
+      setSubscribedDrugs([]); // Reset on error
     }
   };
 
   const handleSubscription = async () => {
+    
+    if (!memberId || !prescriptionId || !plan || quantity < 1) {
+      alert('All fields are required, and quantity must be at least 1.');
+      return;
+    }
+
     try {
-      const response = await axios.post('http://localhost:3000/api/subscription/subscribe', {
+      await axios.post('http://localhost:3000/api/subscription/subscribe', {
         memberId,
-        drugId,
+        prescriptionId,
         plan,
-        quantity
+        quantity,
+        
       });
 
       alert('Subscription successful!');
@@ -60,12 +73,12 @@ const Subscribe = () => {
         </div>
 
         <div className="form-group mb-3">
-          <label htmlFor="drugId">Drug ID:</label>
+          <label htmlFor="prescriptionId">Prescription ID:</label>
           <Form.Control
             type="text"
-            placeholder="Enter Drug ID"
-            value={drugId}
-            onChange={(e) => setDrugId(e.target.value)}
+            placeholder="Enter Prescription ID"
+            value={prescriptionId}
+            onChange={(e) => setPrescriptionId(e.target.value)}
           />
         </div>
 
@@ -105,7 +118,14 @@ const Subscribe = () => {
       <div className="mt-5">
         <Button
           variant="secondary"
-          onClick={() => setShowSubscribedDrugs(!showSubscribedDrugs)}
+          onClick={() => {
+            if (showSubscribedDrugs) {
+              setShowSubscribedDrugs(false);
+            } else {
+              fetchSubscribedDrugs(); // Fetch data when user clicks to show subscribed drugs
+              setShowSubscribedDrugs(true);
+            }
+          }}
         >
           {showSubscribedDrugs ? 'Hide Subscribed Drugs' : 'Show Subscribed Drugs'}
         </Button>
@@ -114,7 +134,7 @@ const Subscribe = () => {
           <Table striped bordered hover className="mt-3">
             <thead>
               <tr>
-                <th>Drug ID</th>
+                <th>Prescription ID</th>
                 <th>Plan</th>
                 <th>Quantity</th>
                 <th>Subscription Date</th>
@@ -123,11 +143,11 @@ const Subscribe = () => {
             <tbody>
               {subscribedDrugs.map((drug, index) => (
                 <tr key={index}>
-                  <td>{drug.drugId}</td>
+                  <td>{drug.prescriptionId}</td>
                   <td>{drug.plan}</td>
                   <td>{drug.quantity}</td>
-                  <td>{new Date(drug.subscriptionDate).toLocaleDateString()}</td>
-                </tr>
+                  <td>{drug.createdAt ? new Date(drug.createdAt).toLocaleDateString() : 'N/A'}</td> 
+                  </tr>
               ))}
             </tbody>
           </Table>
